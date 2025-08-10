@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List
-from services.git import get_branches, commit_info, get_file_diff
+from services.git import get_branches, commit_info, get_file_diff, create_and_push_branch
 from models.response import SuccessResponse
-from models.git import GitCommitRequest, GitCompareRequest
+from models.git import GitCommitRequest, GitCompareRequest, GitBranchCreateRequest
 from config import REPO_PATH, repo
-from utils.git import validate_branch_name
+from utils.git import validate_branch_name, branch_exists_local, branch_exists_remote
+from fastapi import BackgroundTasks
 
 router = APIRouter()
 
@@ -26,7 +26,7 @@ async def get_all_branches():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/git_commit", response_model=SuccessResponse)
+@router.post("/git_branch_commit", response_model=SuccessResponse)
 async def get_commit_info(branch_req: GitCommitRequest):
     try:
         validate_branch = validate_branch_name(branch_req.branch, REPO_PATH)
@@ -47,7 +47,7 @@ async def get_commit_info(branch_req: GitCommitRequest):
 
 
 
-@router.post("/git_compare", response_model=SuccessResponse)
+@router.post("/git_branch_compare", response_model=SuccessResponse)
 async def compare_branches(branch_req: GitCompareRequest):
     try:
         # Validate branches
@@ -72,3 +72,37 @@ async def compare_branches(branch_req: GitCompareRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{str(e)}")
     
+
+@router.post("/git_create_branch", response_model=SuccessResponse)
+def create_branch(request: GitBranchCreateRequest, background_tasks: BackgroundTasks):
+    try:
+        new_branch = f"v_/{request.new_branch}"
+        source_branch = validate_branch_name(request.source_branch, REPO_PATH)
+
+        # Check if source branch exists locally or remotely
+        if not branch_exists_local(repo, source_branch):
+            if branch_exists_remote(repo, source_branch):
+                repo.git.fetch("origin", source_branch)
+            else:
+                raise Exception(f"Source branch '{source_branch}' not found locally or remotely.")
+
+        # Check if new branch already exists locally or remotely
+        if branch_exists_local(repo, new_branch) or branch_exists_remote(repo, new_branch):
+            raise Exception(f"Branch '{new_branch}' already exists locally or remotely.")
+            
+        # Create and push new branch
+        try:
+            new_branch, source_branch = create_and_push_branch(repo, new_branch, source_branch, background_tasks)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error creating branch: {str(e)}")
+
+        return SuccessResponse (
+            status="success",
+            message="Branch created successfully",
+            data={
+                "new_branch": new_branch,
+                "source_branch": source_branch
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{str(e)}")

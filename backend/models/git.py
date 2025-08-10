@@ -7,3 +7,7 @@ class GitCommitRequest(BaseModel):
 class GitCompareRequest(BaseModel):
     branch1: str
     branch2: str
+
+class GitBranchCreateRequest(BaseModel):
+    new_branch: str 
+    source_branch: str

@@ -32,3 +32,28 @@ def validate_branch_name(branch: str, repo_path: str) -> str:
     
     except subprocess.CalledProcessError as e:
         raise Exception(f"Error retrieving branches: {e.stderr.strip()}") from e
+
+
+def branch_exists_local(repo, branch_name: str) -> bool:
+    return branch_name in [head.name for head in repo.heads]
+
+
+def branch_exists_remote(repo, branch_name: str) -> bool:
+    try:
+        remote_branches = subprocess.check_output(
+            ["git", "ls-remote", "--heads", "origin", branch_name],
+            cwd=repo.working_tree_dir
+        ).decode().strip()
+        return bool(remote_branches)
+    except subprocess.CalledProcessError:
+        return False
+    
+    
+def _push_changes(repo, branch):
+    """Internal helper for background push."""
+    print(f"[BG-TASK] Pushing changes to remote branch '{branch}'...")
+    try:
+        repo.git.push("origin", branch)
+        print(f"[BG-TASK] Push to '{branch}' completed successfully!")
+    except Exception as e:
+        print(f"[BG-TASK] Push failed: {e}")

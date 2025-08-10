@@ -3,6 +3,7 @@ import subprocess
 import difflib
 import git
 import logging
+from utils.git import _push_changes
 
 
 # Setup logger
@@ -45,6 +46,7 @@ def get_branches(repo_path):
         logger.error(f"Error retrieving branches: {e.stderr.strip()}")
         raise Exception(f"Error retrieving branches: {e.stderr.strip()}") from e
 
+
 def commit_info(branch: str, repo_path: str) -> list[dict]:
     """
     Get full commit history for the specified branch.
@@ -78,6 +80,7 @@ def commit_info(branch: str, repo_path: str) -> list[dict]:
         logger.error(f"Error retrieving commit history: {e.stderr.strip()}")
         raise Exception(f"Error retrieving commit history: {e.stderr.strip()}") from e
 
+
 def get_file_diff(branch1, branch2, repo_path):
     logger.info(f"Comparing branches: {branch1} vs {branch2} in repo: {repo_path}")
     repo = git.Repo(repo_path)
@@ -102,3 +105,23 @@ def get_file_diff(branch1, branch2, repo_path):
         })
     logger.info(f"Total changed files: {len(changes)}")
     return changes
+
+
+def create_and_push_branch(repo, new_branch, source_branch, background_tasks):
+    logger.info(f"Creating new branch '{new_branch}' from source branch '{source_branch}'")
+    
+    logger.info(f"Checking out source branch: {source_branch}")
+    repo.git.checkout(source_branch)
+    
+    logger.info(f"Creating new branch: {new_branch}")
+    new_branch_ref = repo.create_head(new_branch)
+    
+    logger.info(f"Checking out new branch: {new_branch}")
+    new_branch_ref.checkout()
+    
+    # Schedule git push in the background
+    background_tasks.add_task(_push_changes, repo, new_branch)
+    
+    logger.info(f"Branch '{new_branch}' created locally; push scheduled in background.")
+
+    return new_branch, source_branch
