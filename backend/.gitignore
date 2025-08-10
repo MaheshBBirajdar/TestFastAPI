@@ -1,0 +1,8 @@
+backend\__pycache__
+backend\api\__pycache__
+backend\db\__pycache__
+backend\models\__pycache__
+backend\services\__pycache__
+backend\utils\__pycache__
+*.pyc
+.env
