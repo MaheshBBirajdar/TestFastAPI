@@ -39,7 +39,10 @@ def get_branches(repo_path):
             capture_output=True
         )
         branches = result.stdout.strip().split('\n')
-        branch_list = [branch.strip().lstrip("* ").strip() for branch in branches if branch]
+        branch_list = [
+            branch.strip().lstrip("* ").strip() for branch in branches 
+            if branch and branch.strip().lstrip("* ").strip().startswith('v')
+        ]
         logger.info(f"Branches found: {branch_list}")
         return branch_list
     except subprocess.CalledProcessError as e:
